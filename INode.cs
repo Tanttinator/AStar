@@ -8,6 +8,8 @@ namespace AStar
     {
         Vector2 Position { get; }
         INode[] Neighbors { get; }
-        float MovementCost { get; }
+        float EntryCost { get; }
+
+        float MovementCost(INode other);
     }
 }
