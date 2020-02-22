@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using UnityEngine;
 
 namespace AStar
@@ -12,6 +13,9 @@ namespace AStar
     /// </summary>
     public static class AStar
     {
+
+        static Queue<IPathData> pathQueue = new Queue<IPathData>();
+
         /// <summary>
         /// Generates a path from start to end.
         /// </summary>
@@ -102,6 +106,40 @@ namespace AStar
             else
                 return Mathf.Infinity;
         }
+
+        /// <summary>
+        /// Create a pathfinding request.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="start"></param>
+        /// <param name="end"></param>
+        /// <param name="callback"></param>
+        public static void GeneratePathThreaded<T>(INode start, INode end, Action<Queue<T>> callback) where T : INode
+        {
+            pathQueue.Enqueue(new PathData<T>(start, end, callback));
+        }
+
+        /// <summary>
+        /// Starts a new thread to handle path requests.
+        /// </summary>
+        public static void StartPathThread()
+        {
+            ThreadStart start = new ThreadStart(delegate
+            {
+                while(true)
+                {
+                    if(pathQueue.Count > 0)
+                    {
+                        IPathData data = pathQueue.Dequeue();
+                        Type type = data.Type;
+                        var method = typeof(AStar).GetMethod("GeneratePath", new Type[] { typeof(INode), typeof(INode) }).MakeGenericMethod(type);
+                        var path = method.Invoke(null, new object[] { data.Start, data.End });
+                        data.Invoke(new Queue<INode>((path as IEnumerable).Cast<INode>()));
+                    }
+                }
+            });
+            new Thread(start).Start();
+        }
     }
 
     /// <summary>
@@ -117,6 +155,49 @@ namespace AStar
                 return 1;
             else
                 return result;
+        }
+    }
+
+    /// <summary>
+    /// Generic wrapper for PathData
+    /// </summary>
+    public interface IPathData
+    {
+        INode Start { get; }
+        INode End { get; }
+        Type Type { get; }
+        void Invoke(Queue<INode> path);
+    }
+
+    /// <summary>
+    /// Data struct for path generation thread.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public struct PathData<T> : IPathData where T : INode
+    {
+        public INode start;
+        public INode end;
+        public Type type;
+        public Action<Queue<T>> callback;
+
+        public PathData(INode start, INode end, Action<Queue<T>> callback)
+        {
+            this.start = start;
+            this.end = end;
+            this.callback = callback;
+            type = typeof(T);
+        }
+
+        public INode Start => start;
+
+        public INode End => end;
+
+        public Type Type => type;
+
+        public void Invoke(Queue<INode> path)
+        {
+            Queue<T> newPath = new Queue<T>(path.Cast<T>());
+            callback?.Invoke(newPath);
         }
     }
 }
