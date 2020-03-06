@@ -9,7 +9,6 @@ namespace AStar
         Vector2 Position { get; }
         INode[] Neighbors { get; }
         float EntryCost { get; }
-
-        float MovementCost(INode other);
+        bool CanEnter(IAgent agent);
     }
 }

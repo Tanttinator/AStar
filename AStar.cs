@@ -22,7 +22,7 @@ namespace AStar
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <returns>Path or null if the nodes aren't connected.</returns>
-        public static Queue<T> GeneratePath<T>(INode start, INode end) where T : INode
+        public static Queue<T> GeneratePath<T>(INode start, INode end, IAgent agent) where T : INode
         {
             if (end.EntryCost < 0)
                 return null;
@@ -63,9 +63,9 @@ namespace AStar
                 openSet.RemoveAt(0);
                 foreach(INode neighbor in current.Neighbors)
                 {
-                    if (current.MovementCost(neighbor) < 0)
+                    if (!neighbor.CanEnter(agent))
                         continue;
-                    float tentativeGScore = GetScore(gScore, current) + current.MovementCost(neighbor);
+                    float tentativeGScore = GetScore(gScore, current) + agent.MovementCost(current, neighbor);
                     if(tentativeGScore < GetScore(gScore, neighbor))
                     {
                         cameFrom[neighbor] = current;
@@ -114,9 +114,9 @@ namespace AStar
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <param name="callback"></param>
-        public static void GeneratePathThreaded<T>(INode start, INode end, Action<Queue<T>> callback) where T : INode
+        public static void GeneratePathThreaded<T>(INode start, INode end, IAgent agent, Action<Queue<T>> callback) where T : INode
         {
-            pathQueue.Enqueue(new PathData<T>(start, end, callback));
+            pathQueue.Enqueue(new PathData<T>(start, end, agent, callback));
         }
 
         /// <summary>
@@ -132,8 +132,8 @@ namespace AStar
                     {
                         IPathData data = pathQueue.Dequeue();
                         Type type = data.Type;
-                        var method = typeof(AStar).GetMethod("GeneratePath", new Type[] { typeof(INode), typeof(INode) }).MakeGenericMethod(type);
-                        var path = method.Invoke(null, new object[] { data.Start, data.End });
+                        var method = typeof(AStar).GetMethod("GeneratePath", new Type[] { typeof(INode), typeof(INode), typeof(IAgent) }).MakeGenericMethod(type);
+                        var path = method.Invoke(null, new object[] { data.Start, data.End, data.Agent });
                         data.Invoke(new Queue<INode>((path as IEnumerable).Cast<INode>()));
                     }
                 }
@@ -165,6 +165,7 @@ namespace AStar
     {
         INode Start { get; }
         INode End { get; }
+        IAgent Agent { get; }
         Type Type { get; }
         void Invoke(Queue<INode> path);
     }
@@ -177,13 +178,15 @@ namespace AStar
     {
         public INode start;
         public INode end;
+        public IAgent agent;
         public Type type;
         public Action<Queue<T>> callback;
 
-        public PathData(INode start, INode end, Action<Queue<T>> callback)
+        public PathData(INode start, INode end, IAgent agent, Action<Queue<T>> callback)
         {
             this.start = start;
             this.end = end;
+            this.agent = agent;
             this.callback = callback;
             type = typeof(T);
         }
@@ -191,6 +194,8 @@ namespace AStar
         public INode Start => start;
 
         public INode End => end;
+
+        public IAgent Agent => agent;
 
         public Type Type => type;
 
