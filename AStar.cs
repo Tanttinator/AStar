@@ -24,8 +24,6 @@ namespace AStar
         /// <returns>Path or null if the nodes aren't connected.</returns>
         public static Queue<T> GeneratePath<T>(INode start, INode end, IAgent agent) where T : INode
         {
-            if (end.EntryCost < 0)
-                return null;
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
             Stopwatch.StartNew();
@@ -43,7 +41,6 @@ namespace AStar
             while(openSet.Count > 0)
             {
                 INode current = openSet.First().Value;
-
                 if(current == end)
                 {
                     INode step = end;
@@ -56,14 +53,14 @@ namespace AStar
                     path = new Queue<T>(path.Reverse());
                     stopWatch.Stop();
                     long ms = stopWatch.ElapsedMilliseconds;
-                    UnityEngine.Debug.Log("Path found in " + ms / 1000f +" seconds!");
+                    //UnityEngine.Debug.Log("Path found in " + ms / 1000f +" seconds!");
                     return path;
                 }
 
                 openSet.RemoveAt(0);
                 foreach(INode neighbor in current.Neighbors)
                 {
-                    if (!neighbor.CanEnter(agent))
+                    if (!neighbor.CanEnter(agent) && neighbor != end)
                         continue;
                     float tentativeGScore = GetScore(gScore, current) + agent.MovementCost(current, neighbor);
                     if(tentativeGScore < GetScore(gScore, neighbor))
