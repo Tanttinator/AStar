@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
-using UnityEngine;
 
 namespace AStar
 {
@@ -22,7 +21,7 @@ namespace AStar
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <returns>Path or null if the nodes aren't connected.</returns>
-        public static Queue<T> GeneratePath<T>(INode start, INode end, IAgent agent) where T : INode
+        public static Queue<T> GeneratePath<T>(INode start, INode end, object agent) where T : INode
         {
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
@@ -60,9 +59,9 @@ namespace AStar
                 openSet.RemoveAt(0);
                 foreach(INode neighbor in current.Neighbors)
                 {
-                    if (!neighbor.CanEnter(agent) && neighbor != end)
+                    if (!neighbor.CanEnter(agent, current))
                         continue;
-                    float tentativeGScore = GetScore(gScore, current) + agent.MovementCost(current, neighbor);
+                    float tentativeGScore = GetScore(gScore, current) + neighbor.EntryCost(agent, current);
                     if(tentativeGScore < GetScore(gScore, neighbor))
                     {
                         cameFrom[neighbor] = current;
@@ -101,7 +100,7 @@ namespace AStar
             if (dict.ContainsKey(node))
                 return dict[node];
             else
-                return Mathf.Infinity;
+                return float.MaxValue;
         }
 
         /// <summary>
@@ -111,7 +110,7 @@ namespace AStar
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <param name="callback"></param>
-        public static void GeneratePathThreaded<T>(INode start, INode end, IAgent agent, Action<Queue<T>> callback) where T : INode
+        public static void GeneratePathThreaded<T>(INode start, INode end, object agent, Action<Queue<T>> callback) where T : INode
         {
             pathQueue.Enqueue(new PathData<T>(start, end, agent, callback));
         }
@@ -129,7 +128,7 @@ namespace AStar
                     {
                         IPathData data = pathQueue.Dequeue();
                         Type type = data.Type;
-                        var method = typeof(AStar).GetMethod("GeneratePath", new Type[] { typeof(INode), typeof(INode), typeof(IAgent) }).MakeGenericMethod(type);
+                        var method = typeof(AStar).GetMethod("GeneratePath", new Type[] { typeof(INode), typeof(INode), typeof(object) }).MakeGenericMethod(type);
                         var path = method.Invoke(null, new object[] { data.Start, data.End, data.Agent });
                         data.Invoke(new Queue<INode>((path as IEnumerable).Cast<INode>()));
                     }
@@ -162,7 +161,7 @@ namespace AStar
     {
         INode Start { get; }
         INode End { get; }
-        IAgent Agent { get; }
+        object Agent { get; }
         Type Type { get; }
         void Invoke(Queue<INode> path);
     }
@@ -175,11 +174,11 @@ namespace AStar
     {
         public INode start;
         public INode end;
-        public IAgent agent;
+        public object agent;
         public Type type;
         public Action<Queue<T>> callback;
 
-        public PathData(INode start, INode end, IAgent agent, Action<Queue<T>> callback)
+        public PathData(INode start, INode end, object agent, Action<Queue<T>> callback)
         {
             this.start = start;
             this.end = end;
@@ -192,7 +191,7 @@ namespace AStar
 
         public INode End => end;
 
-        public IAgent Agent => agent;
+        public object Agent => agent;
 
         public Type Type => type;
 

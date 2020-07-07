@@ -1,14 +1,11 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-
+﻿
 namespace AStar
 {
     public interface INode
     {
         Vector2 Position { get; }
         INode[] Neighbors { get; }
-        float EntryCost { get; }
-        bool CanEnter(IAgent agent);
+        float EntryCost(object agent, INode from);
+        bool CanEnter(object agent, INode from);
     }
 }
