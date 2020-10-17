@@ -1,2 +1,2 @@
 # AStar
-A* asset for Unity
+Generic C# implementation of the A* algorithm.
