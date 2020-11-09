@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 
-namespace AStar
+namespace Tanttinator.AStar
 {
     /// <summary>
     /// Handles path generation.
@@ -21,7 +21,7 @@ namespace AStar
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <returns>Path or null if the nodes aren't connected.</returns>
-        public static Queue<T> GeneratePath<T>(INode start, INode end, object agent) where T : INode
+        public static Queue<T> GeneratePath<T>(INode start, INode end, object agent, Action<string> debug = null) where T : INode
         {
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
@@ -52,7 +52,7 @@ namespace AStar
                     path = new Queue<T>(path.Reverse());
                     stopWatch.Stop();
                     long ms = stopWatch.ElapsedMilliseconds;
-                    //UnityEngine.Debug.Log("Path found in " + ms / 1000f +" seconds!");
+                    debug?.Invoke("Path found in " + ms / 1000f + " seconds!");
                     return path;
                 }
 
@@ -74,7 +74,7 @@ namespace AStar
             }
 
             stopWatch.Stop();
-            UnityEngine.Debug.Log("Path not found!");
+            debug?.Invoke("Path not found!");
             return null;
         }
 
@@ -86,7 +86,7 @@ namespace AStar
         /// <returns></returns>
         static float CostEstimate(INode node, INode end)
         {
-            return Vector2.Distance(node.Position, end.Position);
+            return (float)(Math.Pow(end.X - node.X, 2) + Math.Pow(end.Y - node.Y, 2));
         }
 
         /// <summary>
@@ -110,9 +110,9 @@ namespace AStar
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <param name="callback"></param>
-        public static void GeneratePathThreaded<T>(INode start, INode end, object agent, Action<Queue<T>> callback) where T : INode
+        public static void GeneratePathThreaded<T>(INode start, INode end, object agent, Action<Queue<T>> callback, Action<string> debug = null) where T : INode
         {
-            pathQueue.Enqueue(new PathData<T>(start, end, agent, callback));
+            pathQueue.Enqueue(new PathData<T>(start, end, agent, callback, debug));
         }
 
         /// <summary>
@@ -128,8 +128,8 @@ namespace AStar
                     {
                         IPathData data = pathQueue.Dequeue();
                         Type type = data.Type;
-                        var method = typeof(AStar).GetMethod("GeneratePath", new Type[] { typeof(INode), typeof(INode), typeof(object) }).MakeGenericMethod(type);
-                        var path = method.Invoke(null, new object[] { data.Start, data.End, data.Agent });
+                        var method = typeof(AStar).GetMethod("GeneratePath", new Type[] { typeof(INode), typeof(INode), typeof(object), typeof(Action<string>) }).MakeGenericMethod(type);
+                        var path = method.Invoke(null, new object[] { data.Start, data.End, data.Agent, data.Debug });
                         data.Invoke(new Queue<INode>((path as IEnumerable).Cast<INode>()));
                     }
                 }
@@ -162,6 +162,7 @@ namespace AStar
         INode Start { get; }
         INode End { get; }
         object Agent { get; }
+        Action<string> Debug { get; }
         Type Type { get; }
         void Invoke(Queue<INode> path);
     }
@@ -177,13 +178,15 @@ namespace AStar
         public object agent;
         public Type type;
         public Action<Queue<T>> callback;
+        public Action<string> debug;
 
-        public PathData(INode start, INode end, object agent, Action<Queue<T>> callback)
+        public PathData(INode start, INode end, object agent, Action<Queue<T>> callback, Action<string> debug)
         {
             this.start = start;
             this.end = end;
             this.agent = agent;
             this.callback = callback;
+            this.debug = debug;
             type = typeof(T);
         }
 
@@ -192,6 +195,8 @@ namespace AStar
         public INode End => end;
 
         public object Agent => agent;
+
+        public Action<string> Debug => debug;
 
         public Type Type => type;
 

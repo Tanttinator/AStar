@@ -1,9 +1,10 @@
 ﻿
-namespace AStar
+namespace Tanttinator.AStar
 {
     public interface INode
     {
-        Vector2 Position { get; }
+        float X { get; }
+        float Y { get; }
         INode[] Neighbors { get; }
         float EntryCost(object agent, INode from);
         bool CanEnter(object agent, INode from);
